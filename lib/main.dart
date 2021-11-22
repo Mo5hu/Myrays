@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:my_rays/tabs/handy_talkie.dart';
+import 'package:my_rays/tabs/leaderboard.dart';
+import 'package:my_rays/tabs/map.dart';
+import 'package:my_rays/tabs/settings.dart';
+import 'package:my_rays/tabs/timeattack.dart';
+import 'package:provider/provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -48,68 +55,112 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  int _selectedIndex = 0;
+  static const TextStyle optionStyle =
+      TextStyle(fontSize: 30, fontWeight: FontWeight.bold);
+  static const List<Widget> _widgetOptions = <Widget>[
+    Map(),
+    TimeAttack(),
+    HandyTalkie(),
+    Leaderboard(),
+    Settings(),
+    // Align(alignment: Alignment.topCenter,child: ,)
+  ];
 
-  void _incrementCounter() {
+  void _onItemTapped(int index) {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      // Provider.of<StateOfInteraction>(context, listen: false)
+      //     .stateChanged(index);
+      _selectedIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+    return MultiProvider(
+      providers: [
+        StreamProvider<Position>(
+          initialData: Position(
+            latitude: 0,
+            longitude: 0,
+            accuracy: 2,
+            altitude: 4,
+            timestamp: DateTime.now(),
+            heading: 2,
+            speed: 2,
+            speedAccuracy: 4,
+          ),
+          create: (context) => Geolocator.getPositionStream(
+              desiredAccuracy: LocationAccuracy.best),
         ),
+        ChangeNotifierProvider(
+          create: (_) => StateOfInteraction(stateCode: _selectedIndex),
+        ),
+      ],
+      child: Consumer<StateOfInteraction>(
+        builder: (context, value, child) {
+          int? state = value._stateCode;
+          print("---------------State: " + state.toString());
+          return Scaffold(
+            body: Stack(
+              children: [
+                Visibility(
+                  visible: [1].contains(state),
+                  child: AlertDialog(
+                    title: Text("State: ($state)"),
+                  ),
+                ),
+                Scaffold(
+                  body: Center(
+                    child: IndexedStack(
+                      children: _widgetOptions,
+                      index: _selectedIndex,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            bottomNavigationBar: BottomNavigationBar(
+              items: const <BottomNavigationBarItem>[
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.map_outlined),
+                  label: 'Map',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.timer_sharp),
+                  label: 'Time Attack',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.phone_in_talk_outlined),
+                  label: 'Handy Talkie',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.leaderboard),
+                  label: 'Leaderboard',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings),
+                  label: 'Settings',
+                ),
+              ],
+              currentIndex: _selectedIndex,
+              selectedItemColor: Colors.grey[900],
+              onTap: _onItemTapped,
+            ),
+          );
+        },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+}
+
+class StateOfInteraction extends ChangeNotifier {
+  int? _stateCode;
+
+  StateOfInteraction({required stateCode}) : _stateCode = stateCode;
+
+  stateChanged(int state) {
+    _stateCode = state;
+    notifyListeners();
   }
 }
